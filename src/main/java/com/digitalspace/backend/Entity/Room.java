@@ -21,7 +21,8 @@ public class Room {
 
     @Column(nullable = false, unique = true, length = 10)
     private String roomCode;
-
+    //we need room theme so that when ever new member join the team room theme should be consistent
+    //across all member
     @Enumerated(EnumType.STRING)
     private RoomTheme theme;
 
