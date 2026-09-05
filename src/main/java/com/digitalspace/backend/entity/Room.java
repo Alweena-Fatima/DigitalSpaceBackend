@@ -1,6 +1,5 @@
-package com.digitalspace.backend.Entity;
+package com.digitalspace.backend.entity;
 
-import com.digitalspace.backend.Entity.RoomTheme;
 import jakarta.persistence.*;
 import lombok.*;
 
