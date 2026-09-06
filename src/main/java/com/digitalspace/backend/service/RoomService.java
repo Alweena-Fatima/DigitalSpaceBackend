@@ -1,14 +1,11 @@
 package com.digitalspace.backend.service;
 
-import com.digitalspace.backend.dto.RoomJoinRequestDTO;
-import com.digitalspace.backend.dto.RoomMemberResponseDTO;
-import com.digitalspace.backend.dto.RoomResponseDTO;
-import com.digitalspace.backend.entity.MemberStatus;
-import com.digitalspace.backend.entity.Room;
-import com.digitalspace.backend.entity.RoomMember;
-import com.digitalspace.backend.entity.RoomTheme;
+import com.digitalspace.backend.dto.*;
+import com.digitalspace.backend.entity.*;
+import com.digitalspace.backend.mapper.GoalMapper;
 import com.digitalspace.backend.mapper.RoomMapper;
 import com.digitalspace.backend.mapper.RoomMemberMapper;
+import com.digitalspace.backend.repository.GoalRepository;
 import com.digitalspace.backend.repository.RoomMemberRepository;
 import com.digitalspace.backend.repository.RoomRepository;
 import org.springframework.stereotype.Service;
@@ -25,11 +22,15 @@ public class RoomService {
     private final RoomMapper roomMapper;
     private final RoomMemberRepository roomMemberRepository;
     private final RoomMemberMapper roomMemberMapper;
-    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper){
+    private final GoalRepository goalRepository;
+    private final GoalMapper goalMapper;
+    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper){
         this.roomrepo=roomrepo;
         this.roomMapper = roomMapper;
         this.roomMemberRepository = roomMemberRepository;
         this.roomMemberMapper = roomMemberMapper;
+        this.goalRepository = goalRepository;
+        this.goalMapper = goalMapper;
     }
     //1) generate random room code
     // 2) default room theme
@@ -85,4 +86,41 @@ public class RoomService {
         Room room=roomrepo.findByRoomCode(roomCode).orElseThrow(()-> new RuntimeException("Room doesnot exist"));
         return roomMapper.toResponseDTO(room);
     }
+    //now time to create goal logic
+    public GoalResponseDTO createGoal(String roomCode, String goalTitle){
+        Room room=roomrepo.findByRoomCode(roomCode).orElseThrow(()-> new RuntimeException("Room doesnot exist"));
+        Goal goal=Goal.builder()
+                .room(room)
+                .title(goalTitle)
+                .createdAt(LocalDateTime.now())
+                .completed(false)
+                .build();
+        Goal savedGoal=goalRepository.save(goal);
+        return goalMapper.toResponseDTO(savedGoal);
+    }
+    //now get all goal using room id use goal maper to convert goal entity to goalresponse dto and display it
+    public List<GoalResponseDTO> getGoals(String roomCode){
+        Room room=roomrepo.findByRoomCode(roomCode).orElseThrow(()-> new RuntimeException("Room doesnot exist"));
+        List<Goal> goals=goalRepository.findByRoomId(room.getId());
+        return goals.stream()
+                .map(goalMapper::toResponseDTO)
+                .toList();
+    }
+    // now logic to update the goal status
+// goalId = 2 → find goal 2 → completed = true → save → return updated DTO
+    public GoalResponseDTO updateGoal(Long goalId, GoalUpdateRequestDTO req){
+        Goal goal=goalRepository.findById(goalId).orElseThrow(()-> new RuntimeException("Goal not found"));
+        goal.setCompleted(req.isCompleted());
+        Goal updateGoal=goalRepository.save(goal);
+        return goalMapper.toResponseDTO(updateGoal);
+    }
+    //now logic to delete the goal
+    public void deleteGoal(Long goalId) {
+
+        Goal goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new RuntimeException("Goal not found"));
+
+        goalRepository.delete(goal);
+    }
+
 }

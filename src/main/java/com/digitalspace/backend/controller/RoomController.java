@@ -1,9 +1,7 @@
 package com.digitalspace.backend.controller;
 
 
-import com.digitalspace.backend.dto.RoomJoinRequestDTO;
-import com.digitalspace.backend.dto.RoomMemberResponseDTO;
-import com.digitalspace.backend.dto.RoomResponseDTO;
+import com.digitalspace.backend.dto.*;
 import com.digitalspace.backend.entity.Room;
 import com.digitalspace.backend.entity.RoomMember;
 import com.digitalspace.backend.service.RoomService;
@@ -36,5 +34,28 @@ public class RoomController {
     @GetMapping("/{roomCode}")
     public RoomResponseDTO getRoom(@PathVariable String roomCode){
         return roomService.getRoom(roomCode);
+    }
+    //now endpoint for goal creation
+    @PostMapping("/{roomCode}/goals")
+    public GoalResponseDTO createGoal(@PathVariable String roomCode, @RequestBody GoalRequestDTO goaltitle){
+        return roomService.createGoal(roomCode,goaltitle.getTitle());
+    }
+    //now get all goal endpoint
+    @GetMapping("/{roomCode}/goals")
+    public List<GoalResponseDTO> getGoals(@PathVariable String roomCode){
+        return roomService.getGoals(roomCode);
+    }
+    //now put endpoint to update the goal status
+    @PutMapping("/goals/{goalId}")
+    public GoalResponseDTO updateGoal(
+            @PathVariable("goalId") Long goalId,
+            @RequestBody GoalUpdateRequestDTO request
+    ) {
+        return roomService.updateGoal(goalId, request);
+    }
+    //now goal delete end point
+    @DeleteMapping("/goals/{goalId}")
+    public void deleteGoal(@PathVariable("goalId") Long goalId) {
+        roomService.deleteGoal(goalId);
     }
 }

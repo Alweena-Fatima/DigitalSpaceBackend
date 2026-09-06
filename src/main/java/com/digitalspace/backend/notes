@@ -1,0 +1,47 @@
+✅ Rooms
+✅ Room Members
+      ↓
+🎯 Goals          ← NEXT
+      ↓
+📝 Vocabulary
+      ↓
+💬 Quotes
+      ↓
+🔮 Gemini Word Magic
+      ↓
+💬 Chat/WebSocket
+      ↓
+🎨 Theme updates
+
+
+
+Goals apis
+POST   /api/rooms/{roomCode}/goals
+GET    /api/rooms/{roomCode}/goals
+PUT    /api/goals/{goalId}
+DELETE /api/goals/{goalId}
+
+
+Create
+if frontend sends roomCode = B2AA8F
+                  title = Finish DSA sheet
+
+then B2AA8F
+        ↓
+     Find Room
+        ↓
+     Create Goal
+        ↓
+     room = B2AA8F's Room
+     title = Finish DSA sheet
+     completed = false
+        ↓
+     Save to MySQL
+        ↓
+     Convert Entity → DTO
+
+Relationship
+Room B2AA8F
+     │
+     └── Goal
+          └── Finish DSA sheet
