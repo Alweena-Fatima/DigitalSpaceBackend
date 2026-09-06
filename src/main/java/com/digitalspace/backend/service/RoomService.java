@@ -5,9 +5,11 @@ import com.digitalspace.backend.entity.*;
 import com.digitalspace.backend.mapper.GoalMapper;
 import com.digitalspace.backend.mapper.RoomMapper;
 import com.digitalspace.backend.mapper.RoomMemberMapper;
+import com.digitalspace.backend.mapper.WordMapper;
 import com.digitalspace.backend.repository.GoalRepository;
 import com.digitalspace.backend.repository.RoomMemberRepository;
 import com.digitalspace.backend.repository.RoomRepository;
+import com.digitalspace.backend.repository.WordRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,13 +26,17 @@ public class RoomService {
     private final RoomMemberMapper roomMemberMapper;
     private final GoalRepository goalRepository;
     private final GoalMapper goalMapper;
-    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper){
+    private final WordRepository wordRepository;
+    private final WordMapper wordMapper;
+    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper, WordRepository wordRepository, WordMapper wordMapper){
         this.roomrepo=roomrepo;
         this.roomMapper = roomMapper;
         this.roomMemberRepository = roomMemberRepository;
         this.roomMemberMapper = roomMemberMapper;
         this.goalRepository = goalRepository;
         this.goalMapper = goalMapper;
+        this.wordRepository = wordRepository;
+        this.wordMapper = wordMapper;
     }
     //1) generate random room code
     // 2) default room theme
@@ -121,6 +127,34 @@ public class RoomService {
                 .orElseThrow(() -> new RuntimeException("Goal not found"));
 
         goalRepository.delete(goal);
+    }
+    //now create word
+    public WordResponseDTO createWord(String roomCode, String word, String meaning){
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+        Word newWord=Word.builder()
+                .room(room)
+                .word(word)
+                .meaning(meaning)
+                .createdAt(LocalDateTime.now())
+                .build();
+        Word savedWord=wordRepository.save(newWord);
+        return wordMapper.toResponseDTO(savedWord);
+    }
+    //now logic to get all saved word in the room
+    public List<WordResponseDTO> getWords(String roomCode){
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+        List<Word> words=wordRepository.findByRoomId(room.getId());
+        return words.stream()
+                .map(wordMapper::toResponseDTO)
+                .toList();
+    }
+    //logic to delete the word
+    public void deleteWord(Long wordId){
+        Word word=wordRepository.findById(wordId)
+                .orElseThrow(()-> new RuntimeException("Word not found"));
+        wordRepository.delete(word);
     }
 
 }

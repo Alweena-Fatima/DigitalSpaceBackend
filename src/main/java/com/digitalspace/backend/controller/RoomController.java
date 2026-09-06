@@ -58,4 +58,21 @@ public class RoomController {
     public void deleteGoal(@PathVariable("goalId") Long goalId) {
         roomService.deleteGoal(goalId);
     }
+    //now Create word apis endpoint
+    @PostMapping("/{roomCode}/words")
+    public WordResponseDTO createWord(@PathVariable String roomCode, @RequestBody WordRequestDTO req){
+        return roomService.createWord(roomCode, req.getWord(), req.getMeaning());
+    }
+    //now endpoint to get all saved words in the room
+    @GetMapping("/{roomCode}/words")
+    public List<WordResponseDTO> getWords(@PathVariable String roomCode ){
+        return roomService.getWords(roomCode);
+    }
+    //now delete the word endpoint
+    @DeleteMapping("/words/{wordId}")
+    public void deleteWord(
+            @PathVariable("wordId") Long wordId
+    ) {
+        roomService.deleteWord(wordId);
+    }
 }
