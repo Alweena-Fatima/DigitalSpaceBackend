@@ -2,15 +2,10 @@ package com.digitalspace.backend.service;
 
 import com.digitalspace.backend.dto.*;
 import com.digitalspace.backend.entity.*;
-import com.digitalspace.backend.mapper.GoalMapper;
-import com.digitalspace.backend.mapper.RoomMapper;
-import com.digitalspace.backend.mapper.RoomMemberMapper;
-import com.digitalspace.backend.mapper.WordMapper;
-import com.digitalspace.backend.repository.GoalRepository;
-import com.digitalspace.backend.repository.RoomMemberRepository;
-import com.digitalspace.backend.repository.RoomRepository;
-import com.digitalspace.backend.repository.WordRepository;
+import com.digitalspace.backend.mapper.*;
+import com.digitalspace.backend.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,7 +23,9 @@ public class RoomService {
     private final GoalMapper goalMapper;
     private final WordRepository wordRepository;
     private final WordMapper wordMapper;
-    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper, WordRepository wordRepository, WordMapper wordMapper){
+    private final QuoteRepository quoteRepo;
+    private final QuoteMapper quoteMapper;
+    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper, WordRepository wordRepository, WordMapper wordMapper, QuoteRepository quoteRepo, QuoteMapper quoteMapper){
         this.roomrepo=roomrepo;
         this.roomMapper = roomMapper;
         this.roomMemberRepository = roomMemberRepository;
@@ -37,6 +34,8 @@ public class RoomService {
         this.goalMapper = goalMapper;
         this.wordRepository = wordRepository;
         this.wordMapper = wordMapper;
+        this.quoteRepo = quoteRepo;
+        this.quoteMapper = quoteMapper;
     }
     //1) generate random room code
     // 2) default room theme
@@ -155,6 +154,38 @@ public class RoomService {
         Word word=wordRepository.findById(wordId)
                 .orElseThrow(()-> new RuntimeException("Word not found"));
         wordRepository.delete(word);
+    }
+    //now quote creation logic we need quote author and roomCode
+    public QuoteResponseDTO createQuote(String roomCode, String quote, String author){
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        Quote newQuote= Quote.builder()
+                .room(room)
+                .quote(quote)
+                .author(author)
+                .createdAt(LocalDateTime.now())
+                .build();
+        Quote savedQuote=quoteRepo.save(newQuote);
+        return quoteMapper.toResponseDTO(savedQuote);
+    }
+    //get the list of all quote
+    public List<QuoteResponseDTO> getQuotes(String roomCode) {
+
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        List<Quote> quotes = quoteRepo.findByRoomId(room.getId());
+        return quotes.stream()
+                .map(quoteMapper::toResponseDTO)
+                .toList();
+    }
+    //now delete the quote
+    public void deleteQuote(Long quoteId){
+        Quote quote = quoteRepo.findById(quoteId)
+                .orElseThrow(() -> new RuntimeException("Quote not found"));
+
+        quoteRepo.delete(quote);
     }
 
 }

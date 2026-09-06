@@ -75,4 +75,24 @@ public class RoomController {
     ) {
         roomService.deleteWord(wordId);
     }
+    //now quote creation endpoint
+    @PostMapping("/{roomCode}/quotes")
+    public QuoteResponseDTO createQuote(@PathVariable String roomCode, @RequestBody QuoteRequestDTO req){
+        return roomService.createQuote(
+                roomCode,
+                req.getQuote(),
+                req.getAuthor()
+        );
+    }
+    //get all quote endpoint
+    @GetMapping("/{roomCode}/quotes")
+    public List<QuoteResponseDTO> getQuotes( @PathVariable String roomCode) {
+        return roomService.getQuotes(roomCode);
+    }
+    //delete the quote
+    @DeleteMapping("/quotes/{quoteId}")
+    public void deleteQuote(@PathVariable("quoteId") Long quoteId){
+        roomService.deleteQuote(quoteId);
+    }
+
 }
