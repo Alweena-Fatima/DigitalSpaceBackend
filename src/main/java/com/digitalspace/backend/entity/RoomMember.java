@@ -38,6 +38,8 @@ public class RoomMember {
     // ├── Alweena → STUDYING
     // ├── Sarah   → READING
     // └── Ali     → BREAK
+    @Column(nullable = false, length = 50)
+    private String displayName;
     @Enumerated(EnumType.STRING)
     private MemberStatus status;
 

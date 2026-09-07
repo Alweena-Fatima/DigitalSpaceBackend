@@ -64,13 +64,32 @@ public class RoomService {
         Room room=roomrepo.findByRoomCode(request.getRoomCode()).orElseThrow(
                 ()-> new RuntimeException("Room not found")
         );
-        // join a member
+        // Check if the room already has 6 members
+        List<RoomMember> members =
+                roomMemberRepository.findByRoomId(room.getId());
+
+        if (members.size() >= 6) {
+            throw new RuntimeException("Room is full. Maximum 6 members allowed.");
+        }
+        // Check if the nickname is already used in this room
+        boolean nicknameExists = members.stream()
+                .anyMatch(member ->
+                        member.getNickname().equalsIgnoreCase(request.getNickname())
+                );
+
+        if (nicknameExists) {
+            throw new RuntimeException("Nickname is already taken in this room.");
+        }
+        // Create the new member
         RoomMember member = RoomMember.builder()
                 .room(room)
                 .nickname(request.getNickname())
-                .status(MemberStatus.STUDYING) //join karte waqt to studying hi hoga
+                .displayName(request.getDisplayName())
+                .status(MemberStatus.STUDYING)
                 .joinedAt(LocalDateTime.now())
                 .build();
+
+        // Save the member
         RoomMember savedMember = roomMemberRepository.save(member);
 
         return roomMemberMapper.toResponseDTO(savedMember);
@@ -186,6 +205,58 @@ public class RoomService {
                 .orElseThrow(() -> new RuntimeException("Quote not found"));
 
         quoteRepo.delete(quote);
+    }
+    //update theme
+    public RoomResponseDTO updateTheme(String roomCode, RoomTheme theme) {
+
+        // Find the room using its room code
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        // Change the room's theme
+        room.setTheme(theme);
+
+        // Save the updated room in the database
+        Room updatedRoom = roomrepo.save(room);
+
+        // Return the updated room as DTO
+        return roomMapper.toResponseDTO(updatedRoom);
+    }
+    public RoomMemberResponseDTO updateMemberStatus(
+            String roomCode,
+            Long memberId,
+            MemberStatus status
+    ) {
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        RoomMember member = roomMemberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
+
+        // Make sure this member actually belongs to this room
+        if (!member.getRoom().getId().equals(room.getId())) {
+            throw new RuntimeException("Member does not belong to this room");
+        }
+
+        member.setStatus(status);
+
+        RoomMember updatedMember = roomMemberRepository.save(member);
+
+        return roomMemberMapper.toResponseDTO(updatedMember);
+    }
+    public void leaveRoom(String roomCode, Long memberId) {
+
+        Room room = roomrepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        RoomMember member = roomMemberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
+
+        if (!member.getRoom().getId().equals(room.getId())) {
+            throw new RuntimeException("Member does not belong to this room");
+        }
+
+        roomMemberRepository.delete(member);
     }
 
 }

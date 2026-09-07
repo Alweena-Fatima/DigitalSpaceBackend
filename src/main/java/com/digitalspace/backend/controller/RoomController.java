@@ -2,15 +2,18 @@ package com.digitalspace.backend.controller;
 
 
 import com.digitalspace.backend.dto.*;
+import com.digitalspace.backend.entity.MemberStatus;
 import com.digitalspace.backend.entity.Room;
 import com.digitalspace.backend.entity.RoomMember;
+import com.digitalspace.backend.entity.RoomTheme;
 import com.digitalspace.backend.service.RoomService;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.bind.annotation.CrossOrigin;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/rooms")
+@CrossOrigin(origins = "http://localhost:5173")
 public class RoomController {
     private final RoomService roomService;
 
@@ -93,6 +96,34 @@ public class RoomController {
     @DeleteMapping("/quotes/{quoteId}")
     public void deleteQuote(@PathVariable("quoteId") Long quoteId){
         roomService.deleteQuote(quoteId);
+    }
+    @PutMapping("/{roomCode}/theme")
+    public RoomResponseDTO updateTheme(
+            @PathVariable String roomCode,
+            @RequestParam RoomTheme theme
+    ) {
+        return roomService.updateTheme(roomCode, theme);
+    }
+    @PutMapping("/{roomCode}/members/{memberId}/status")
+
+
+    public RoomMemberResponseDTO updateMemberStatus(
+            @PathVariable("roomCode") String roomCode,
+            @PathVariable("memberId") Long memberId,
+            @RequestParam MemberStatus status
+    ) {
+        return roomService.updateMemberStatus(
+                roomCode,
+                memberId,
+                status
+        );
+    }
+    @DeleteMapping("/{roomCode}/members/{memberId}")
+    public void leaveRoom(
+            @PathVariable String roomCode,
+            @PathVariable Long memberId
+    ) {
+        roomService.leaveRoom(roomCode, memberId);
     }
 
 }

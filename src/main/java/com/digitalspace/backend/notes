@@ -45,3 +45,18 @@ Room B2AA8F
      │
      └── Goal
           └── Finish DSA sheet
+
+gemini word
+User enters word
+      ↓
+Backend sends word to Gemini
+      ↓
+Gemini generates meaning
+      ↓
+Backend returns meaning
+      ↓
+User sees meaning
+      ↓
+"Save to Library"
+      ↓
+Existing POST /words API

@@ -9,4 +9,5 @@ public class RoomJoinRequestDTO {
 
     private String roomCode;
     private String nickname;
+    private String displayName;
 }

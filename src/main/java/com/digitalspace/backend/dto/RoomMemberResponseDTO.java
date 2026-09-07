@@ -13,6 +13,7 @@ public class RoomMemberResponseDTO {
     //so front end already know which room member is joining so we dont need that in our response
     private Long id;
     private String nickname;
+    private String displayName;
     private MemberStatus status;
     private LocalDateTime joinedAt;
 }
