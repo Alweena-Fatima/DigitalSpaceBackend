@@ -1,4 +1,4 @@
-package com.digitalspace.backend.Entity;
+package com.digitalspace.backend.entity;
 
 
 
