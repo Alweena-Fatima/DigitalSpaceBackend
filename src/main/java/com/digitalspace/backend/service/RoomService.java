@@ -132,19 +132,60 @@ public class RoomService {
     }
     // now logic to update the goal status
 // goalId = 2 → find goal 2 → completed = true → save → return updated DTO
-    public GoalResponseDTO updateGoal(Long goalId, GoalUpdateRequestDTO req){
-        Goal goal=goalRepository.findById(goalId).orElseThrow(()-> new RuntimeException("Goal not found"));
-        goal.setCompleted(req.isCompleted());
-        Goal updateGoal=goalRepository.save(goal);
-        return goalMapper.toResponseDTO(updateGoal);
-    }
-    //now logic to delete the goal
-    public void deleteGoal(Long goalId) {
+    public GoalUpdateResult updateGoal(
+            Long goalId,
+            GoalUpdateRequestDTO req) {
 
+        // Find the goal
         Goal goal = goalRepository.findById(goalId)
-                .orElseThrow(() -> new RuntimeException("Goal not found"));
+                .orElseThrow(() ->
+                        new RuntimeException("Goal not found"));
 
+        // Update completion status
+        goal.setCompleted(req.isCompleted());
+
+        // Save updated goal
+        Goal updatedGoal =
+                goalRepository.save(goal);
+
+        // Convert entity to response DTO
+        GoalResponseDTO response =
+                goalMapper.toResponseDTO(updatedGoal);
+
+        // Get the room this goal belongs to
+        String roomCode =
+                goal.getRoom().getRoomCode();
+
+        // Return both goal + room information
+        return new GoalUpdateResult(
+                roomCode,
+                response
+        );
+    }
+    //now logic to delete the goal controller ko delete ke baad pata nahi hoga ki goal kis room ka tha, so WebSocket topic nahi pata chalega.
+//    public void deleteGoal(Long goalId) {
+//
+//        Goal goal = goalRepository.findById(goalId)
+//                .orElseThrow(() -> new RuntimeException("Goal not found"));
+//
+//        goalRepository.delete(goal);
+//    }
+    public String deleteGoal(Long goalId) {
+
+        // Find the goal
+        Goal goal = goalRepository.findById(goalId)
+                .orElseThrow(() ->
+                        new RuntimeException("Goal not found"));
+
+        // Get the room before deleting the goal
+        String roomCode =
+                goal.getRoom().getRoomCode();
+
+        // Delete the goal
         goalRepository.delete(goal);
+
+        // Return room code so controller can broadcast
+        return roomCode;
     }
     //now create word
     public WordResponseDTO createWord(String roomCode, String word, String meaning){

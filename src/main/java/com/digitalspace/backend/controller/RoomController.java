@@ -8,6 +8,7 @@ import com.digitalspace.backend.entity.RoomMember;
 import com.digitalspace.backend.entity.RoomTheme;
 import com.digitalspace.backend.service.MessageService;
 import com.digitalspace.backend.service.RoomService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import java.util.List;
@@ -19,10 +20,12 @@ public class RoomController {
     private final RoomService roomService;
     //add msg service to get all the msg after refresh too
     private final MessageService msgService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public RoomController(RoomService roomService, MessageService msgService) {
+    public RoomController(RoomService roomService, MessageService msgService, SimpMessagingTemplate messagingTemplate) {
         this.roomService = roomService;
         this.msgService = msgService;
+        this.messagingTemplate = messagingTemplate;
     }
     @PostMapping
     public RoomResponseDTO createRoom(){
@@ -45,7 +48,24 @@ public class RoomController {
     //now endpoint for goal creation
     @PostMapping("/{roomCode}/goals")
     public GoalResponseDTO createGoal(@PathVariable String roomCode, @RequestBody GoalRequestDTO goaltitle){
-        return roomService.createGoal(roomCode,goaltitle.getTitle());
+        // Save the goal in the database
+        GoalResponseDTO createdGoal =
+                roomService.createGoal(
+                        roomCode,
+                        goaltitle.getTitle()
+                );
+
+        // Tell everyone in this room about the new goal
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/goals",
+                new GoalWebSocketDTO(
+                        "CREATE",
+                        roomCode,
+                        createdGoal
+                )
+        );
+
+        return createdGoal;
     }
     //now get all goal endpoint
     @GetMapping("/{roomCode}/goals")
@@ -58,12 +78,46 @@ public class RoomController {
             @PathVariable("goalId") Long goalId,
             @RequestBody GoalUpdateRequestDTO request
     ) {
-        return roomService.updateGoal(goalId, request);
+
+        // Update the goal in the database
+        GoalUpdateResult result =
+                roomService.updateGoal(goalId, request);
+
+        // Tell everyone in this room about the update
+        messagingTemplate.convertAndSend(
+                "/topic/room/"
+                        + result.getRoomCode()
+                        + "/goals",
+
+                new GoalWebSocketDTO(
+                        "UPDATE",
+                        result.getRoomCode(),
+                        result.getGoal()
+                )
+        );
+
+        // Return the updated goal to the user who made the request
+        return result.getGoal();
     }
     //now goal delete end point
     @DeleteMapping("/goals/{goalId}")
-    public void deleteGoal(@PathVariable("goalId") Long goalId) {
-        roomService.deleteGoal(goalId);
+    public void deleteGoal(
+            @PathVariable("goalId") Long goalId) {
+
+        // Delete the goal and get its room code
+        String roomCode =
+                roomService.deleteGoal(goalId);
+
+        // Tell everyone in this room that the goal was deleted
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/goals",
+
+                new GoalWebSocketDTO(
+                        "DELETE",
+                        roomCode,
+                        goalId
+                )
+        );
     }
     //now Create word apis endpoint
     @PostMapping("/{roomCode}/words")
