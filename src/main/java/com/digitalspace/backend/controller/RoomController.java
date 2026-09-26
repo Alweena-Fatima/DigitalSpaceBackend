@@ -6,6 +6,7 @@ import com.digitalspace.backend.entity.MemberStatus;
 import com.digitalspace.backend.entity.Room;
 import com.digitalspace.backend.entity.RoomMember;
 import com.digitalspace.backend.entity.RoomTheme;
+import com.digitalspace.backend.service.MessageService;
 import com.digitalspace.backend.service.RoomService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -16,9 +17,12 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 public class RoomController {
     private final RoomService roomService;
+    //add msg service to get all the msg after refresh too
+    private final MessageService msgService;
 
-    public RoomController(RoomService roomService) {
+    public RoomController(RoomService roomService, MessageService msgService) {
         this.roomService = roomService;
+        this.msgService = msgService;
     }
     @PostMapping
     public RoomResponseDTO createRoom(){
@@ -125,5 +129,18 @@ public class RoomController {
     ) {
         roomService.leaveRoom(roomCode, memberId);
     }
+    //add get msg api (to get the old msg of the room)
+    //WebSocket → handles new real-time messages
+    //MySQL → stores them
+    //But React still has no way to ask, “give me the old messages.”
+    @GetMapping("/{roomCode}/messages")
+    public List<ChatMessageDTO> getMessages(@PathVariable String roomCode){
+        return msgService.getMessages(roomCode);
+    }
+//                      ┌── WebSocket ──→ New messages
+//    React ────────────┤
+//                      └── REST ───────→ Old messages
+//                         ↓
+//                        MySQL
 
 }
