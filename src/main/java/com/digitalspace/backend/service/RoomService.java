@@ -253,11 +253,25 @@ public class RoomService {
                 .toList();
     }
     //now delete the quote
-    public void deleteQuote(Long quoteId){
-        Quote quote = quoteRepo.findById(quoteId)
-                .orElseThrow(() -> new RuntimeException("Quote not found"));
+    // Delete quote and return room code
+// so controller can broadcast the deletion
+    public String deleteQuote(Long quoteId) {
 
+        // Find the quote
+        Quote quote = quoteRepo.findById(quoteId)
+                .orElseThrow(() ->
+                        new RuntimeException("Quote not found"));
+
+        // Get room code before deleting the quote
+        String roomCode =
+                quote.getRoom().getRoomCode();
+
+        // Delete the quote
         quoteRepo.delete(quote);
+
+        // Return room code so controller knows
+        // which room should receive the WebSocket event
+        return roomCode;
     }
     //update theme
     public RoomResponseDTO updateTheme(String roomCode, RoomTheme theme) {

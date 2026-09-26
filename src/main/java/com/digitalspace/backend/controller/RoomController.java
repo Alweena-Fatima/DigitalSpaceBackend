@@ -191,12 +191,30 @@ public class RoomController {
     }
     //now quote creation endpoint
     @PostMapping("/{roomCode}/quotes")
-    public QuoteResponseDTO createQuote(@PathVariable String roomCode, @RequestBody QuoteRequestDTO req){
-        return roomService.createQuote(
-                roomCode,
-                req.getQuote(),
-                req.getAuthor()
+    public QuoteResponseDTO createQuote(
+            @PathVariable String roomCode,
+            @RequestBody QuoteRequestDTO req) {
+
+        // Save the quote in the database
+        QuoteResponseDTO createdQuote =
+                roomService.createQuote(
+                        roomCode,
+                        req.getQuote(),
+                        req.getAuthor()
+                );
+
+        // Tell everyone in this room about the new quote
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/quotes",
+
+                new QuoteWebSocketDTO(
+                        "CREATE",
+                        roomCode,
+                        createdQuote
+                )
         );
+
+        return createdQuote;
     }
     //get all quote endpoint
     @GetMapping("/{roomCode}/quotes")
@@ -205,8 +223,23 @@ public class RoomController {
     }
     //delete the quote
     @DeleteMapping("/quotes/{quoteId}")
-    public void deleteQuote(@PathVariable("quoteId") Long quoteId){
-        roomService.deleteQuote(quoteId);
+    public void deleteQuote(
+            @PathVariable("quoteId") Long quoteId) {
+
+        // Delete the quote and get its room code
+        String roomCode =
+                roomService.deleteQuote(quoteId);
+
+        // Tell everyone in this room that the quote was deleted
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/quotes",
+
+                new QuoteWebSocketDTO(
+                        "DELETE",
+                        roomCode,
+                        quoteId
+                )
+        );
     }
     @PutMapping("/{roomCode}/theme")
     public RoomResponseDTO updateTheme(
