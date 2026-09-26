@@ -210,10 +210,22 @@ public class RoomService {
                 .toList();
     }
     //logic to delete the word
-    public void deleteWord(Long wordId){
-        Word word=wordRepository.findById(wordId)
-                .orElseThrow(()-> new RuntimeException("Word not found"));
+    public String deleteWord(Long wordId) {
+
+        // Find the word
+        Word word = wordRepository.findById(wordId)
+                .orElseThrow(() ->
+                        new RuntimeException("Word not found"));
+
+        // Get the room before deleting the word
+        String roomCode =
+                word.getRoom().getRoomCode();
+
+        // Delete the word
         wordRepository.delete(word);
+
+        // Return room code so controller can broadcast
+        return roomCode;
     }
     //now quote creation logic we need quote author and roomCode
     public QuoteResponseDTO createQuote(String roomCode, String quote, String author){

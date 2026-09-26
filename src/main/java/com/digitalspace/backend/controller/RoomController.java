@@ -120,21 +120,74 @@ public class RoomController {
         );
     }
     //now Create word apis endpoint
+    // =======================
+// CREATE WORD
+// =======================
+
     @PostMapping("/{roomCode}/words")
-    public WordResponseDTO createWord(@PathVariable String roomCode, @RequestBody WordRequestDTO req){
-        return roomService.createWord(roomCode, req.getWord(), req.getMeaning());
+    public WordResponseDTO createWord(
+            @PathVariable String roomCode,
+            @RequestBody WordRequestDTO req) {
+
+        // Save the word in the database
+        WordResponseDTO createdWord =
+                roomService.createWord(
+                        roomCode,
+                        req.getWord(),
+                        req.getMeaning()
+                );
+        System.out.println(
+                "📢 Broadcasting word CREATE to room: " + roomCode
+        );
+        // Tell everyone in this room about the new word
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/words",
+
+                new WordWebSocketDTO(
+                        "CREATE",
+                        roomCode,
+                        createdWord
+                )
+        );
+
+        return createdWord;
     }
-    //now endpoint to get all saved words in the room
+
+
+// =======================
+// GET ALL WORDS
+// =======================
+
     @GetMapping("/{roomCode}/words")
-    public List<WordResponseDTO> getWords(@PathVariable String roomCode ){
+    public List<WordResponseDTO> getWords(
+            @PathVariable String roomCode) {
+
         return roomService.getWords(roomCode);
     }
-    //now delete the word endpoint
+
+
+// =======================
+// DELETE WORD
+// =======================
+
     @DeleteMapping("/words/{wordId}")
     public void deleteWord(
-            @PathVariable("wordId") Long wordId
-    ) {
-        roomService.deleteWord(wordId);
+            @PathVariable("wordId") Long wordId) {
+
+        // Delete the word and get its room code
+        String roomCode =
+                roomService.deleteWord(wordId);
+
+        // Tell everyone in this room that the word was deleted
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/words",
+
+                new WordWebSocketDTO(
+                        "DELETE",
+                        roomCode,
+                        wordId
+                )
+        );
     }
     //now quote creation endpoint
     @PostMapping("/{roomCode}/quotes")
