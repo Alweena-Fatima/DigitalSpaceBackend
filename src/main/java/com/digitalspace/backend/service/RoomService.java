@@ -5,10 +5,8 @@ import com.digitalspace.backend.entity.*;
 import com.digitalspace.backend.mapper.*;
 import com.digitalspace.backend.repository.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,10 +14,10 @@ import java.util.UUID;
 @Service //this class will handle buisness logic
 public class RoomService {
     private final RoomRepository roomrepo; //inject repo
-    private final RoomMapper roomMapper;
-    private final RoomMemberRepository roomMemberRepository;
+    private final RoomMapper roomMapper; //convert the room entities into roomresDTO
+    private final RoomMemberRepository roomMemberRepository;//repo use to manage member inside a room
     private final RoomMemberMapper roomMemberMapper;
-    private final GoalRepository goalRepository;
+    private final GoalRepository goalRepository;//manage goal
     private final GoalMapper goalMapper;
     private final WordRepository wordRepository;
     private final WordMapper wordMapper;
@@ -37,6 +35,11 @@ public class RoomService {
         this.quoteRepo = quoteRepo;
         this.quoteMapper = quoteMapper;
     }
+    // =========================================================
+    // ROOM
+    // =========================================================
+
+    //CREATE ROOM LOGIC
     //1) generate random room code
     // 2) default room theme
     // 3) createdAt
@@ -56,9 +59,13 @@ public class RoomService {
                 .createdAt(LocalDateTime.now())
                 .theme(RoomTheme.CAFE)
                 .build(); //.build() - it convert builder into room object
-        Room savedRoom=roomrepo.save(room);
-        return roomMapper.toResponseDTO(savedRoom);
+
+        Room savedRoom=roomrepo.save(room); //save in repo
+
+        return roomMapper.toResponseDTO(savedRoom);//return dto instead of exposing entity
     }
+
+    //ADDING NEW MEMBER TO EXISTING ROOM
     public RoomMemberResponseDTO joinRoom(RoomJoinRequestDTO request){
         //get room info like id from roomcode
         Room room=roomrepo.findByRoomCode(request.getRoomCode()).orElseThrow(
@@ -72,14 +79,19 @@ public class RoomService {
             throw new RuntimeException("Room is full. Maximum 6 members allowed.");
         }
         // Check if the nickname is already used in this room
-        boolean nicknameExists = members.stream()
-                .anyMatch(member ->
-                        member.getNickname().equalsIgnoreCase(request.getNickname())
-                );
+        boolean nicknameExists =
+                members.stream()
+                        .anyMatch(member ->
+                                member.getNickname()
+                                        .equalsIgnoreCase(
+                                                request.getNickname()
+                                        )
+                        );
 
         if (nicknameExists) {
             throw new RuntimeException("Nickname is already taken in this room.");
         }
+
         // Create the new member
         RoomMember member = RoomMember.builder()
                 .room(room)
@@ -96,23 +108,37 @@ public class RoomService {
 
 
     }
-    //get all room members
+
+    //LIST OF ALL MEMBER IN THE ROOM
     public List<RoomMemberResponseDTO> getRoomMembers(String roomCode){
+
+        // Find the room first because members are stored using the room ID.
         Room room=roomrepo.findByRoomCode(roomCode).orElseThrow(()-> new RuntimeException("Room does not exist"));
-        List<RoomMember> list=roomMemberRepository.findByRoomId(room.getId()); //we will get the member list
+        //we will get the member list
+        List<RoomMember> list=roomMemberRepository.findByRoomId(room.getId());
+        //map each entity to response dto
         return list.stream()
-                .map(roomMemberMapper:: toResponseDTO)//map each entity to response dto
+                .map(roomMemberMapper:: toResponseDTO)
                 .toList();
 
     }
-    //now get the room info
+
+    //BASIC INFO OF ROOM
     public RoomResponseDTO getRoom(String roomCode){
+        // Find the room using the code provided by the frontend.
         Room room=roomrepo.findByRoomCode(roomCode).orElseThrow(()-> new RuntimeException("Room doesnot exist"));
         return roomMapper.toResponseDTO(room);
     }
+    // =========================================================
+    // GOALS
+    // =========================================================
+
     //now time to create goal logic
     public GoalResponseDTO createGoal(String roomCode, String goalTitle){
+        // Find the room that this goal belongs to.
         Room room=roomrepo.findByRoomCode(roomCode).orElseThrow(()-> new RuntimeException("Room doesnot exist"));
+
+        //create a new goal
         Goal goal=Goal.builder()
                 .room(room)
                 .title(goalTitle)
@@ -130,13 +156,20 @@ public class RoomService {
                 .map(goalMapper::toResponseDTO)
                 .toList();
     }
-    // now logic to update the goal status
+    // GOAL STATUS
+    /*
+     * Updates the completion status of an existing goal.
+     *
+     * We return both the updated goal and its room code because
+     * the controller needs the room code to broadcast the change
+     * through WebSocket.
+     */
 // goalId = 2 → find goal 2 → completed = true → save → return updated DTO
     public GoalUpdateResult updateGoal(
             Long goalId,
             GoalUpdateRequestDTO req) {
 
-        // Find the goal
+        // Find the goal that needs to be updated
         Goal goal = goalRepository.findById(goalId)
                 .orElseThrow(() ->
                         new RuntimeException("Goal not found"));
@@ -152,7 +185,7 @@ public class RoomService {
         GoalResponseDTO response =
                 goalMapper.toResponseDTO(updatedGoal);
 
-        // Get the room this goal belongs to
+        // Get the room so the controller knows where to broadcast the update.
         String roomCode =
                 goal.getRoom().getRoomCode();
 
@@ -162,14 +195,12 @@ public class RoomService {
                 response
         );
     }
-    //now logic to delete the goal controller ko delete ke baad pata nahi hoga ki goal kis room ka tha, so WebSocket topic nahi pata chalega.
-//    public void deleteGoal(Long goalId) {
-//
-//        Goal goal = goalRepository.findById(goalId)
-//                .orElseThrow(() -> new RuntimeException("Goal not found"));
-//
-//        goalRepository.delete(goal);
-//    }
+    /*
+     * Deletes a goal.
+     *
+     * The room code is retrieved BEFORE deleting the goal because
+     * the controller needs it to know which WebSocket room to notify.
+     */
     public String deleteGoal(Long goalId) {
 
         // Find the goal
@@ -187,10 +218,17 @@ public class RoomService {
         // Return room code so controller can broadcast
         return roomCode;
     }
-    //now create word
+    // =========================================================
+    // WORDS
+    // =========================================================
+
+    //CREATE A NEW WORD
     public WordResponseDTO createWord(String roomCode, String word, String meaning){
+        // Find the room where this word should be stored.
         Room room = roomrepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        //create a word
         Word newWord=Word.builder()
                 .room(room)
                 .word(word)
@@ -202,14 +240,24 @@ public class RoomService {
     }
     //now logic to get all saved word in the room
     public List<WordResponseDTO> getWords(String roomCode){
+        // Find the room using its room code.
         Room room = roomrepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        //get all words of this room
         List<Word> words=wordRepository.findByRoomId(room.getId());
+
+        // Convert each Word entity into a response DTO.
         return words.stream()
                 .map(wordMapper::toResponseDTO)
                 .toList();
     }
-    //logic to delete the word
+    /*
+     * Deletes a word and returns the room code.
+     *
+     * The room code is needed by the controller to broadcast
+     * the deletion to the correct WebSocket topic.
+     */
     public String deleteWord(Long wordId) {
 
         // Find the word
@@ -227,6 +275,10 @@ public class RoomService {
         // Return room code so controller can broadcast
         return roomCode;
     }
+    // =========================================================
+    // QUOTES
+    // =========================================================
+
     //now quote creation logic we need quote author and roomCode
     public QuoteResponseDTO createQuote(String roomCode, String quote, String author){
         Room room = roomrepo.findByRoomCode(roomCode)
@@ -241,20 +293,25 @@ public class RoomService {
         Quote savedQuote=quoteRepo.save(newQuote);
         return quoteMapper.toResponseDTO(savedQuote);
     }
+
     //get the list of all quote
     public List<QuoteResponseDTO> getQuotes(String roomCode) {
 
         Room room = roomrepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
 
+        // Fetch all quotes belonging to this room.
         List<Quote> quotes = quoteRepo.findByRoomId(room.getId());
         return quotes.stream()
                 .map(quoteMapper::toResponseDTO)
                 .toList();
     }
-    //now delete the quote
-    // Delete quote and return room code
-// so controller can broadcast the deletion
+    /*
+     * Deletes a quote and returns the room code.
+     *
+     * The controller needs the room code to broadcast the
+     * deletion to everyone in the same room.
+     */
     public String deleteQuote(Long quoteId) {
 
         // Find the quote
@@ -273,7 +330,16 @@ public class RoomService {
         // which room should receive the WebSocket event
         return roomCode;
     }
-    //update theme
+    // =========================================================
+    // THEME
+    // =========================================================
+
+    /*
+     * Updates the theme of a room.
+     *
+     * Theme is stored on the Room itself, so it is shared
+     * by everyone inside that room.
+     */
     public RoomResponseDTO updateTheme(String roomCode, RoomTheme theme) {
 
         // Find the room using its room code
@@ -289,6 +355,17 @@ public class RoomService {
         // Return the updated room as DTO
         return roomMapper.toResponseDTO(updatedRoom);
     }
+    // =========================================================
+    // MEMBER STATUS
+    // =========================================================
+
+    /*
+     * Updates the current status of a room member.
+     *
+     * Example:
+     * STUDYING → BREAK
+     */
+
     public RoomMemberResponseDTO updateMemberStatus(
             String roomCode,
             Long memberId,
@@ -296,7 +373,7 @@ public class RoomService {
     ) {
         Room room = roomrepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
-
+        // Find the member using their database ID.
         RoomMember member = roomMemberRepository.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
 
@@ -305,17 +382,25 @@ public class RoomService {
             throw new RuntimeException("Member does not belong to this room");
         }
 
+        //update the member status
         member.setStatus(status);
 
         RoomMember updatedMember = roomMemberRepository.save(member);
 
         return roomMemberMapper.toResponseDTO(updatedMember);
     }
+
+    // =========================================================
+    // LEAVE ROOM
+    // =========================================================
     public void leaveRoom(String roomCode, Long memberId) {
+
+        //find the room
 
         Room room = roomrepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
 
+        //find the member who wants to leave
         RoomMember member = roomMemberRepository.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
 

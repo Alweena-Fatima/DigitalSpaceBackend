@@ -3,8 +3,6 @@ package com.digitalspace.backend.controller;
 
 import com.digitalspace.backend.dto.*;
 import com.digitalspace.backend.entity.MemberStatus;
-import com.digitalspace.backend.entity.Room;
-import com.digitalspace.backend.entity.RoomMember;
 import com.digitalspace.backend.entity.RoomTheme;
 import com.digitalspace.backend.service.MessageService;
 import com.digitalspace.backend.service.RoomService;
@@ -27,35 +25,47 @@ public class RoomController {
         this.msgService = msgService;
         this.messagingTemplate = messagingTemplate;
     }
+    // =========================================================
+    // ROOM APIs
+    // =========================================================
+
+    //create a new room
     @PostMapping
     public RoomResponseDTO createRoom(){
+
         return roomService.createRoom();
     }
+
+    //join the existing room using roomCode
     @PostMapping("/join")
     public RoomMemberResponseDTO joinRoom(@RequestBody RoomJoinRequestDTO req){
         return roomService.joinRoom(req);
     }
-    //get the list of all member of room
+
+    //get the list of all member currently in the room
     @GetMapping("/{roomCode}/members")
     public List<RoomMemberResponseDTO> getRoomMembers(@PathVariable String roomCode){
         return roomService.getRoomMembers(roomCode);
     }
+
     //get the room info
     @GetMapping("/{roomCode}")
     public RoomResponseDTO getRoom(@PathVariable String roomCode){
         return roomService.getRoom(roomCode);
     }
-    //now endpoint for goal creation
+    // =========================================================
+    // GOAL APIs
+    // =========================================================
     @PostMapping("/{roomCode}/goals")
     public GoalResponseDTO createGoal(@PathVariable String roomCode, @RequestBody GoalRequestDTO goaltitle){
-        // Save the goal in the database
+        // Save the goal first so we get its generated ID and complete data.
         GoalResponseDTO createdGoal =
                 roomService.createGoal(
                         roomCode,
                         goaltitle.getTitle()
                 );
 
-        // Tell everyone in this room about the new goal
+        // Broadcast the new goal so everyone in the room sees it instantly.
         messagingTemplate.convertAndSend(
                 "/topic/room/" + roomCode + "/goals",
                 new GoalWebSocketDTO(
@@ -67,19 +77,19 @@ public class RoomController {
 
         return createdGoal;
     }
-    //now get all goal endpoint
+    //Load all the goals of the room
     @GetMapping("/{roomCode}/goals")
     public List<GoalResponseDTO> getGoals(@PathVariable String roomCode){
         return roomService.getGoals(roomCode);
     }
-    //now put endpoint to update the goal status
+    //now put endpoint to update the goal done status
     @PutMapping("/goals/{goalId}")
     public GoalResponseDTO updateGoal(
             @PathVariable("goalId") Long goalId,
             @RequestBody GoalUpdateRequestDTO request
     ) {
 
-        // Update the goal in the database
+        // Update the goal and get its room information for the WebSocket topic.
         GoalUpdateResult result =
                 roomService.updateGoal(goalId, request);
 
@@ -104,7 +114,7 @@ public class RoomController {
     public void deleteGoal(
             @PathVariable("goalId") Long goalId) {
 
-        // Delete the goal and get its room code
+        // Delete the goal and return its room code so we know where to broadcast.
         String roomCode =
                 roomService.deleteGoal(goalId);
 
@@ -119,10 +129,9 @@ public class RoomController {
                 )
         );
     }
-    //now Create word apis endpoint
-    // =======================
-// CREATE WORD
-// =======================
+    // =========================================================
+    // WORD APIs
+    // =========================================================
 
     @PostMapping("/{roomCode}/words")
     public WordResponseDTO createWord(
@@ -136,9 +145,7 @@ public class RoomController {
                         req.getWord(),
                         req.getMeaning()
                 );
-        System.out.println(
-                "📢 Broadcasting word CREATE to room: " + roomCode
-        );
+
         // Tell everyone in this room about the new word
         messagingTemplate.convertAndSend(
                 "/topic/room/" + roomCode + "/words",
@@ -152,11 +159,8 @@ public class RoomController {
 
         return createdWord;
     }
+    //Load all the words of room
 
-
-// =======================
-// GET ALL WORDS
-// =======================
 
     @GetMapping("/{roomCode}/words")
     public List<WordResponseDTO> getWords(
@@ -165,10 +169,7 @@ public class RoomController {
         return roomService.getWords(roomCode);
     }
 
-
-// =======================
-// DELETE WORD
-// =======================
+    //delete word
 
     @DeleteMapping("/words/{wordId}")
     public void deleteWord(
@@ -189,7 +190,9 @@ public class RoomController {
                 )
         );
     }
-    //now quote creation endpoint
+    // =========================================================
+    // QUOTE APIs
+    // =========================================================
     @PostMapping("/{roomCode}/quotes")
     public QuoteResponseDTO createQuote(
             @PathVariable String roomCode,
@@ -216,11 +219,13 @@ public class RoomController {
 
         return createdQuote;
     }
+
     //get all quote endpoint
     @GetMapping("/{roomCode}/quotes")
     public List<QuoteResponseDTO> getQuotes( @PathVariable String roomCode) {
         return roomService.getQuotes(roomCode);
     }
+
     //delete the quote
     @DeleteMapping("/quotes/{quoteId}")
     public void deleteQuote(
@@ -241,13 +246,18 @@ public class RoomController {
                 )
         );
     }
+
+    // =========================================================
+    // THEME API
+    // =========================================================
+
     @PutMapping("/{roomCode}/theme")
     public RoomResponseDTO updateTheme(
             @PathVariable String roomCode,
             @RequestParam RoomTheme theme
     ) {
 
-        // Update the theme in the database
+        // Theme is stored at room level, so changing it affects everyone.
         RoomResponseDTO updatedRoom =
                 roomService.updateTheme(
                         roomCode,
@@ -262,9 +272,11 @@ public class RoomController {
 
         return updatedRoom;
     }
+    // =========================================================
+    // MEMBER APIs
+    // =========================================================
+
     @PutMapping("/{roomCode}/members/{memberId}/status")
-
-
     public RoomMemberResponseDTO updateMemberStatus(
             @PathVariable("roomCode") String roomCode,
             @PathVariable("memberId") Long memberId,
@@ -276,6 +288,8 @@ public class RoomController {
                 status
         );
     }
+
+    //api for user to leave the room
     @DeleteMapping("/{roomCode}/members/{memberId}")
     public void leaveRoom(
             @PathVariable String roomCode,
