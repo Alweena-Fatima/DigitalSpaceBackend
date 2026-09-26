@@ -246,7 +246,21 @@ public class RoomController {
             @PathVariable String roomCode,
             @RequestParam RoomTheme theme
     ) {
-        return roomService.updateTheme(roomCode, theme);
+
+        // Update the theme in the database
+        RoomResponseDTO updatedRoom =
+                roomService.updateTheme(
+                        roomCode,
+                        theme
+                );
+
+        // Tell everyone in this room about the theme change
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode + "/theme",
+                updatedRoom
+        );
+
+        return updatedRoom;
     }
     @PutMapping("/{roomCode}/members/{memberId}/status")
 
