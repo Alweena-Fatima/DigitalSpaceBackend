@@ -37,10 +37,32 @@ public class RoomController {
     }
 
     //join the existing room using roomCode
+
     @PostMapping("/join")
-    public RoomMemberResponseDTO joinRoom(@RequestBody RoomJoinRequestDTO req){
-        return roomService.joinRoom(req);
+    public RoomMemberResponseDTO joinRoom(
+            @RequestBody RoomJoinRequestDTO req
+    ) {
+        // First save the new member to the database.
+        RoomMemberResponseDTO newMember =
+                roomService.joinRoom(req);
+
+        // Tell everyone already connected to this room
+        // that a new member has joined.
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + req.getRoomCode(),
+                new MemberEventDTO(
+                        "JOIN",
+                        newMember.getId(),
+                        newMember.getDisplayName(),
+                        newMember.getStatus().name()
+                )
+        );
+
+        // Return the newly created member to the user who joined.
+        return newMember;
     }
+
+
 
     //get the list of all member currently in the room
     @GetMapping("/{roomCode}/members")
@@ -290,13 +312,26 @@ public class RoomController {
     }
 
     //api for user to leave the room
+
     @DeleteMapping("/{roomCode}/members/{memberId}")
     public void leaveRoom(
             @PathVariable String roomCode,
             @PathVariable Long memberId
     ) {
-        roomService.leaveRoom(roomCode, memberId);
+        RoomMemberResponseDTO leftMember =
+                roomService.leaveRoom(roomCode, memberId);
+
+        messagingTemplate.convertAndSend(
+                "/topic/room/" + roomCode,
+                new MemberLeaveDTO(
+                        "LEAVE",
+                        leftMember.getId(),
+                        leftMember.getDisplayName()
+                )
+        );
     }
+
+
     //add get msg api (to get the old msg of the room)
     //WebSocket → handles new real-time messages
     //MySQL → stores them

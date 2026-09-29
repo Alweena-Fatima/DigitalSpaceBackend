@@ -86,15 +86,29 @@ public class MessageService {
                 .map(this::convertToDTO)
                 .toList();
     }
-    //now function to convert entity to dto
-    public ChatMessageDTO convertToDTO(Message msg){
-        ChatMessageDTO dto=new ChatMessageDTO();
+    // Convert Message entity to ChatMessageDTO
+    public ChatMessageDTO convertToDTO(Message msg) {
+
+        ChatMessageDTO dto = new ChatMessageDTO();
+
         dto.setId(msg.getId());
         dto.setRoomCode(msg.getRoom().getRoomCode());
         dto.setContent(msg.getContent());
-        dto.setMemberId(msg.getMember().getId());
-        dto.setUsername(msg.getMember().getDisplayName());
         dto.setSentAt(msg.getSentAt());
+
+        // The member can be null if they left the room.
+        // Their old messages are preserved in the database,
+        // but member_id is set to NULL.
+        if (msg.getMember() != null) {
+            dto.setMemberId(msg.getMember().getId());
+            dto.setUsername(msg.getMember().getDisplayName());
+        } else {
+            dto.setMemberId(null);
+            dto.setUsername("Former member");
+        }
+
         return dto;
     }
+
+
 }

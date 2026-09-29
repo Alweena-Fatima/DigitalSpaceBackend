@@ -390,25 +390,39 @@ public class RoomService {
         return roomMemberMapper.toResponseDTO(updatedMember);
     }
 
-    // =========================================================
-    // LEAVE ROOM
-    // =========================================================
-    public void leaveRoom(String roomCode, Long memberId) {
 
-        //find the room
+    // =========================================================
+// LEAVE ROOM
+// =========================================================
+    public RoomMemberResponseDTO leaveRoom(String roomCode, Long memberId) {
 
+        // Find the room.
         Room room = roomrepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
 
-        //find the member who wants to leave
+        // Find the member who wants to leave.
         RoomMember member = roomMemberRepository.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("Member not found"));
 
+        // Make sure the member belongs to this room.
         if (!member.getRoom().getId().equals(room.getId())) {
             throw new RuntimeException("Member does not belong to this room");
         }
 
+        // Save the member information before deleting the entity.
+        RoomMemberResponseDTO leftMember = new RoomMemberResponseDTO();
+
+        leftMember.setId(member.getId());
+        leftMember.setNickname(member.getNickname());
+        leftMember.setDisplayName(member.getDisplayName());
+        leftMember.setStatus(member.getStatus());
+        leftMember.setJoinedAt(member.getJoinedAt());
+
+        // Delete the member from the database.
         roomMemberRepository.delete(member);
+
+        return leftMember;
     }
+
 
 }
