@@ -1,58 +1,89 @@
 package com.digitalspace.backend.controller;
 
+// DTOs are used to carry data between React and the backend.
 import com.digitalspace.backend.dto.ChatMessageDTO;
 import com.digitalspace.backend.dto.StatusMessageDTO;
 import com.digitalspace.backend.dto.RoomMemberResponseDTO;
+
+// Enum used to represent a member's current activity.
 import com.digitalspace.backend.entity.MemberStatus;
+
+// Services contain the actual business logic.
 import com.digitalspace.backend.service.MessageService;
 import com.digitalspace.backend.service.RoomService;
 
-import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
-import org.springframework.messaging.handler.annotation.MessageMapping;
+// Used to send messages to WebSocket subscribers.
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.annotation.SendToUser;
+
+// Used to map incoming WebSocket messages to Java methods.
+import org.springframework.messaging.handler.annotation.MessageMapping;
+
 import org.springframework.stereotype.Controller;
 
+
 /*
- * Handles messages coming through WebSocket.
+ * Handles WebSocket communication for the study room.
+ *
+ * Unlike RoomController, which handles normal HTTP requests,
+ * this controller handles real-time messages coming from React.
  */
 @Controller
 public class WebSocketController {
 
+    // Used to broadcast messages to all users subscribed to a room.
     private final SimpMessagingTemplate messagingTemplate;
+
+    // Handles room/member related business logic.
     private final RoomService roomService;
-    //add message service class
-    private final MessageService msgService;
+
+    // Handles saving and retrieving chat messages.
+    private final MessageService messageService;
     public WebSocketController(
             SimpMessagingTemplate messagingTemplate,
-            RoomService roomService, MessageService msgService) {
+            RoomService roomService,
+            MessageService messageService
+    ) {
 
         this.messagingTemplate = messagingTemplate;
         this.roomService = roomService;
-        this.msgService = msgService;
+        this.messageService = messageService;
     }
 
+
+    // =========================================================
+    // MEMBER STATUS
+    // =========================================================
+
     /*
-     * React sends status updates to:
+     * React sends a status update to:
      *
      * /app/status
+     *
+     * Because "/app" is our application destination prefix,
+     * Spring maps this message to the method below.
      */
     @MessageMapping("/status")
     public void updateStatus(StatusMessageDTO message) {
 
         /*
-         * Convert the String status coming from React
-         * into our MemberStatus enum.
+         * React sends the status as a String.
          *
          * Example:
+         * "READING"
          *
-         * "READING" → MemberStatus.READING
+         * We convert that String into our Java enum:
+         *
+         * MemberStatus.READING
          */
         MemberStatus newStatus =
                 MemberStatus.valueOf(message.getStatus());
 
+
         /*
-         * First save the new status to MySQL.
+         * Save the new status in the database.
+         *
+         * The service also verifies/updates the correct
+         * room member using the room code and member ID.
          */
         RoomMemberResponseDTO updatedMember =
                 roomService.updateMemberStatus(
@@ -61,12 +92,24 @@ public class WebSocketController {
                         newStatus
                 );
 
+
         /*
-         * Broadcast the updated member to everyone
-         * connected to this room.
+         * The database is now updated.
+         *
+         * Next, we broadcast the updated member information
+         * to everyone who is subscribed to this room.
+         *
+         * Example topic:
+         *
+         * /topic/room/ABC123
          */
         messagingTemplate.convertAndSend(
                 "/topic/room/" + message.getRoomCode(),
+
+                /*
+                 * Send only the information the frontend needs
+                 * to update the member's status.
+                 */
                 new StatusMessageDTO(
                         message.getRoomCode(),
                         updatedMember.getId(),
@@ -74,37 +117,52 @@ public class WebSocketController {
                         updatedMember.getStatus().name()
                 )
         );
+    }
+
+
+    // =========================================================
+    // CHAT
+    // =========================================================
+
+    /*
+     * React sends a new chat message to:
+     *
+     * /app/chat
+     *
+     * Spring routes that message to this method.
+     */
+    @MessageMapping("/chat")
+    public void sendMessage(ChatMessageDTO message) {
 
         /*
-         * Print confirmation in Spring Boot console.
+         * Save the message in MySQL first.
+         *
+         * We save it before broadcasting so that the message
+         * gets its database-generated ID and final timestamp.
          */
-        System.out.println(
-                "Status saved and broadcast:" +updatedMember.getDisplayName() + updatedMember.getStatus()
-        );
+        ChatMessageDTO savedMessage =
+                messageService.saveMessage(
+                        message.getRoomCode(),
+                        message.getMemberId(),
+                        message.getContent()
+                );
 
-    }
-    //save the message api
-    @MessageMapping("/chat")
-    public void sendMessage(ChatMessageDTO msg){
-        //save this message in mysql
-        ChatMessageDTO savedMsg=msgService.saveMessage(
-                msg.getRoomCode(),
-                msg.getMemberId(),
-                msg.getContent()
 
-        );
-        //send the saved msg to everyone connected in the room
+        /*
+         * Now send the saved message to everyone in the room.
+         *
+         * Example:
+         *
+         * /topic/room/ABC123/chat
+         *
+         * Every connected user subscribed to this topic
+         * receives the message in real time.
+         */
         messagingTemplate.convertAndSend(
                 "/topic/room/"
-                        + msg.getRoomCode()
+                        + message.getRoomCode()
                         + "/chat",
-                savedMsg
+                savedMessage
         );
     }
-//    @MessageExceptionHandler
-//    @SendToUser("/queue/errors")
-//    public String handleException(Exception exception) {
-//
-//        return exception.getMessage();
-//    }
 }
