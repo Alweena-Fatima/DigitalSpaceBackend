@@ -78,7 +78,8 @@ public class WebSocketConfig
                  * to connect.
                  */
                 .setAllowedOriginPatterns(
-                        "http://localhost:5173"
+                        "http://localhost:5173",
+                        "https://digital-space-frontend.vercel.app"
                 );
     }
 }
