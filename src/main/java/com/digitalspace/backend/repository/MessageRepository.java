@@ -15,4 +15,8 @@ public interface MessageRepository extends JpaRepository<Message,Long> {
 
     //got the most recent msg sent by any member to calculate 20sec logic
     Optional<Message> findTopByMemberIdOrderBySentAtDesc(Long memberId);
+
+
+    // Get all messages sent by a particular member
+    List<Message> findByMemberId(Long memberId);
 }

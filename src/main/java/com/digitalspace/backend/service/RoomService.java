@@ -23,7 +23,8 @@ public class RoomService {
     private final WordMapper wordMapper;
     private final QuoteRepository quoteRepo;
     private final QuoteMapper quoteMapper;
-    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper, WordRepository wordRepository, WordMapper wordMapper, QuoteRepository quoteRepo, QuoteMapper quoteMapper){
+    private final MessageRepository msgRepo;
+    public RoomService(RoomRepository roomrepo, RoomMapper roomMapper, RoomMemberRepository roomMemberRepository, RoomMemberMapper roomMemberMapper, GoalRepository goalRepository, GoalMapper goalMapper, WordRepository wordRepository, WordMapper wordMapper, QuoteRepository quoteRepo, QuoteMapper quoteMapper, MessageRepository msgRepo){
         this.roomrepo=roomrepo;
         this.roomMapper = roomMapper;
         this.roomMemberRepository = roomMemberRepository;
@@ -34,6 +35,7 @@ public class RoomService {
         this.wordMapper = wordMapper;
         this.quoteRepo = quoteRepo;
         this.quoteMapper = quoteMapper;
+        this.msgRepo = msgRepo;
     }
     // =========================================================
     // ROOM
@@ -418,7 +420,18 @@ public class RoomService {
         leftMember.setStatus(member.getStatus());
         leftMember.setJoinedAt(member.getJoinedAt());
 
-        // Delete the member from the database.
+        // The member may have old chat messages.
+        // Detach those messages from the member before deleting the member.
+        List<Message> messages = msgRepo.findByMemberId(memberId);
+
+        for (Message message : messages) {
+            message.setMember(null);
+        }
+
+        // Save the messages with member_id = NULL.
+        msgRepo.saveAll(messages);
+
+        // Now the member can safely be deleted.
         roomMemberRepository.delete(member);
 
         return leftMember;
